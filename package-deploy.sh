@@ -1,13 +1,17 @@
 #!/bin/bash
 
-ZIP_NAME=
+ENVIRONMENT=
+NOW="$(date +'%d-%m-%Y_%H'%M)"
+SEPARATOR="-"
+ZIP_EXTENSION=".zip"
+S3_URL="s3://elasticbeanstalk-sa-east-1-980074370134/com/cash/app/"
 
 
 function parseValidArguments() {
   while :; do
     case $1 in
 
-      -zn|--zipname) ZIP_NAME="$2"; shift
+      -env|--environment) ENVIRONMENT="$2"; shift
       ;;
       -h|--help) help
       ;;
@@ -20,8 +24,8 @@ function parseValidArguments() {
 
 function validateArguments(){
 
-  if [[ -z "$ZIP_NAME" ]]; then
-    echo "Zip name required ( Param: -zn or--zipname)"
+  if [[ -z "$ENVIRONMENT" ]]; then
+    echo "Environment name required ( Param: -env or--environment)"
     exit 1;
   fi
 }
@@ -50,20 +54,61 @@ function help() {
 parseValidArguments $@
 validateArguments
 
+
+MVN_VERSION=$( mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -v '\[')
+MVN_ARTIFACT=$( mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.artifactId | grep -v '\[')
+
+ZIP_FINAL_NAME="$MVN_ARTIFACT$SEPARATOR$MVN_VERSION$SEPARATOR$NOW$SEPARATO$ZIP_EXTENSION"
+
 log "INFO" "INFO PARAMS"
 log "INFO" "=================="
-log "INFO" "Zip name: $ZIP_NAME"
+log "INFO" "Zip name: $ZIP_FINAL_NAME"
 log "INFO" "=================="
 
-mvn package
+
+mvn clean package
 rc=$?
 if [[ $rc -ne 0 ]] ; then
-  echo 'BUILD FAILURE';
+  log "ERROR" "BUILD FAILURE";
   exit $rc
 fi
 mv target/api*.jar target/api.jar
-zip -r -j  "$ZIP_NAME.zip" target/newrelic/newrelic.jar target/api.jar Procfile src/main/resources/newrelic.yml
+zip -r -j  "$ZIP_FINAL_NAME" target/newrelic/newrelic.jar target/api.jar Procfile src/main/resources/newrelic.yml
+
+
+log "INFO" "=================="
+log "INFO" "Zip Success ==> Zip name: $ZIP_FINAL_NAME"
+log "INFO" "=================="
+
+log "INFO" "Trying to upload zip file to AWS S3"
+
+
+aws s3  cp "$ZIP_FINAL_NAME" "$S3_URL"
+
+log "INFO" "=================="
+log "INFO" "Upload Success ==> Zip name: $ZIP_FINAL_NAME"
+log "INFO" "=================="
+
+
+log "INFO" "=================="
+log "INFO" "Trying to create application version"
+log "INFO" "=================="
+
+aws elasticbeanstalk create-application-version --application-name cash-api --version-label "$ZIP_FINAL_NAME" --source-bundle "S3Bucket=elasticbeanstalk-sa-east-1-980074370134,S3Key=com/cash/app/$ZIP_FINAL_NAME" --region sa-east-1
+
+
+log "INFO" "=================="
+log "INFO" "Create application versionSuccess ==> app-version: $ZIP_FINAL_NAME"
+log "INFO" "=================="
+
+log "INFO" "=================="
+log "INFO" "Start Deploy"
+log "INFO" "=================="
+
+#aws elasticbeanstalk update-environment --version-label "$ZIP_FINAL_NAME" --region us-east-1
+aws elasticbeanstalk update-environment --environment-name $ENVIRONMENT --version-label $ZIP_FINAL_NAME --region sa-east-1
 
 ##############
 ## End Main
 ##############
+
