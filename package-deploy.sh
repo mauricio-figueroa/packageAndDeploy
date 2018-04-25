@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ENVIRONMENT=
-NOW="$(date +'%d-%m-%Y_%H'%M)"
+NOW="$(date +'%Y-%m-%d_%H'%M)"
 SEPARATOR="-"
 ZIP_EXTENSION=".zip"
 S3_URL="s3://elasticbeanstalk-sa-east-1-980074370134/com/cash/app/"
@@ -59,6 +59,7 @@ MVN_VERSION=$( mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -De
 MVN_ARTIFACT=$( mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.artifactId | grep -v '\[')
 
 ZIP_FINAL_NAME="$MVN_ARTIFACT$SEPARATOR$MVN_VERSION$SEPARATOR$NOW$SEPARATO$ZIP_EXTENSION"
+#ZIP_FINAL_NAME="$MVN_ARTIFACT$ZIP_EXTENSION"
 
 log "INFO" "INFO PARAMS"
 log "INFO" "=================="
@@ -66,14 +67,15 @@ log "INFO" "Zip name: $ZIP_FINAL_NAME"
 log "INFO" "=================="
 
 
-mvn clean package
+mvn package
 rc=$?
 if [[ $rc -ne 0 ]] ; then
   log "ERROR" "BUILD FAILURE";
   exit $rc
 fi
 mv target/api*.jar target/api.jar
-zip -r -j  "$ZIP_FINAL_NAME" target/newrelic/newrelic.jar target/api.jar Procfile src/main/resources/newrelic.yml
+zip -r -j  "$ZIP_FINAL_NAME" target/newrelic/newrelic.jar   target/api.jar Procfile.$ENVIRONMENT src/main/resources/newrelic.yml
+zip -r  "$ZIP_FINAL_NAME" ./.ebextensions/
 
 
 log "INFO" "=================="
