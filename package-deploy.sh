@@ -89,6 +89,12 @@ log "INFO" "Trying to upload zip file to AWS S3"
 
 aws s3  cp "$ZIP_FINAL_NAME" "$S3_URL"
 
+rc=$?
+if [[ $rc -ne 0 ]] ; then
+  log "ERROR" "Upload to s3 Failure";
+  exit $rc
+fi
+
 log "INFO" "=================="
 log "INFO" "Upload Success ==> Zip name: $ZIP_FINAL_NAME"
 log "INFO" "=================="
@@ -100,6 +106,11 @@ log "INFO" "=================="
 
 aws elasticbeanstalk create-application-version --application-name cash-api --version-label "$ZIP_FINAL_NAME" --source-bundle "S3Bucket=elasticbeanstalk-sa-east-1-980074370134,S3Key=com/cash/app/$ZIP_FINAL_NAME" --region sa-east-1
 
+rc=$?
+if [[ $rc -ne 0 ]] ; then
+  log "ERROR" "Application version create Failure";
+  exit $rc
+fi
 
 log "INFO" "=================="
 log "INFO" "Create application versionSuccess ==> app-version: $ZIP_FINAL_NAME"
@@ -111,6 +122,13 @@ log "INFO" "=================="
 
 #aws elasticbeanstalk update-environment --version-label "$ZIP_FINAL_NAME" --region us-east-1
 aws elasticbeanstalk update-environment --environment-name $ENVIRONMENT --version-label $ZIP_FINAL_NAME --region sa-east-1
+
+rc=$?
+if [[ $rc -ne 0 ]] ; then
+  log "ERROR" "Deploy Failure";
+  exit $rc
+fi
+
 
 rm $ZIP_FINAL_NAME
 
