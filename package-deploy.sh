@@ -74,8 +74,10 @@ if [[ $rc -ne 0 ]] ; then
   exit $rc
 fi
 mv target/api*.jar target/api.jar
-zip -r -j  "$ZIP_FINAL_NAME" target/newrelic/newrelic.jar   target/api.jar Procfile.$ENVIRONMENT src/main/resources/newrelic.yml
+cp Procfile.$ENVIRONMENT Procfile
+zip -r -j  "$ZIP_FINAL_NAME" target/newrelic/newrelic.jar   target/api.jar Procfile src/main/resources/newrelic.yml
 zip -r  "$ZIP_FINAL_NAME" ./.ebextensions/
+rm Procfile
 
 
 log "INFO" "=================="
@@ -109,6 +111,8 @@ log "INFO" "=================="
 
 #aws elasticbeanstalk update-environment --version-label "$ZIP_FINAL_NAME" --region us-east-1
 aws elasticbeanstalk update-environment --environment-name $ENVIRONMENT --version-label $ZIP_FINAL_NAME --region sa-east-1
+
+rm $ZIP_FINAL_NAME
 
 ##############
 ## End Main
